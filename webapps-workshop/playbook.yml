@@ -1,0 +1,47 @@
+---
+- hosts: all
+  become: true
+  gather_facts: no
+  tasks:
+  - name: Upgrade all packages, ecluiding kernel & foo releated packages
+    ansible.builtin.yum:
+      name: '*'
+      state: latest
+  - name: Install apache and mysql
+    ansible.builtin.yum:
+      name:
+        - httpd
+        - mysql
+        - php-xml
+  - name: Download wordpress
+    unarchive:
+      src:  https://wordpress.org/latest.tar.gz
+      dest: /home/ec2-user
+      remote_src: yes
+  - name: copy wp-config
+    ansible.builtin.shell: cp /home/ec2-user/wordpress/wp-config-sample.php /home/ec2-user/wordpress/wp-config.php
+  - name: Replace vars in wp-config
+    replace:
+      path: /home/ec2-user/wordpress/wp-config.php
+      regexp: "{{ item.regexp1 }}"
+      replace: "{{ item.replace1 }}"
+    with_items:
+      - { regexp1: 'database_name_here', replace1: 'mydb' }
+      - { regexp1: 'username_here', replace1: 'foo' }
+      - { regexp1: 'password_here', replace1: 'foobarbaz' }
+      - { regexp1: 'localhost', replace1: '{{ endpoint }}' }
+  - name: Install wordpress dependencies
+    ansible.builtin.shell:  amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+  - name: copy wp to apache
+    ansible.builtin.shell: cp -r /home/ec2-user/wordpress/* /var/www/html/
+  - name: copy wp to apache
+    ansible.builtin.shell: chown -R apache:apache /var/www/html
+  - name: Make sure a service unit is running
+    ansible.builtin.systemd:
+      state: started
+      name: httpd
+  - name: restart php-fpm
+    ansible.builtin.systemd:
+      state: restarted
+      daemon_reload: yes
+      name: php-fpm

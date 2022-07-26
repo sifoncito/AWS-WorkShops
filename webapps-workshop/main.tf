@@ -151,7 +151,10 @@ output "instance_public_ip" {
   value = "${aws_instance.my_instance.public_ip}"
 }
 
-output "Endpoint_string" {
-  value = "${aws_db_instance.default.endpoint}"
-  
+
+resource "null_resource" "execute-ansible-playbook" {
+ provisioner "local-exec" {
+  command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ec2-user -i '${aws_instance.my_instance.public_ip}', --private-key "path-to-key" playbook.yml -e endpoint='${aws_db_instance.default.endpoint}'"
+} 
+
 }
